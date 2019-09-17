@@ -1,5 +1,5 @@
 class UserGit:
-    def __init__(self,loginUser):
+    def __init__(self, loginUser):
         self.__loginUser = loginUser
         self.__numberPullRequest = 0
         

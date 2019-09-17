@@ -1,12 +1,13 @@
-import requests
+import math
 import time
-import json
+
+import requests
+from controlDir import ControlDir
 
 
 class ApiGitHub:
-    def __init__(self, user, headers=None):
-        if headers is None:
-            headers = {"Authorization": "token 4298820a4fa56a50b02c31343774abcc329e82f0"}
+    def __init__(self, user, token):
+        headers = {"Authorization": token}
         self.__user = user
         self.__headers = headers
         self.__queryCommitFull = """
@@ -29,7 +30,10 @@ class ApiGitHub:
                                     hasNextPage 
                                 }, 
                                 nodes{
-                                    resourcePath,
+                                     resourcePath,
+                                     commit{
+                                        abbreviatedOid
+                                     },
                                     pullRequest{
                                         number
                                     }
@@ -49,13 +53,13 @@ class ApiGitHub:
                 }
             }
             """
-        self.queryCommitBig = """
+        self.__queryCommitBig = """
             {
                 user(login: "userName"){
                     name,
                     avatarUrl,
                     createdAt,    
-                    pullRequests(first:1, states:MERGED){
+                    pullRequests(first:1, states: stateQueryCommit){
                         nodes{
                             repository{
                             pullRequest(number:NumberPull){
@@ -67,6 +71,9 @@ class ApiGitHub:
                                 }, 
                                 nodes{
                                 resourcePath
+                                commit{
+                                    abbreviatedOid
+                                }
                                 }
                                 }
                             }
@@ -74,17 +81,17 @@ class ApiGitHub:
                         }
                     }
             },
-                viewer {
-                    login
-                }
-                rateLimit {
-                    limit
-                    cost
-                    remaining
-                    resetAt
-                }
+            viewer {
+                login
             }
-
+            rateLimit {
+                limit
+                cost
+                remaining
+                resetAt
+            }
+        }
+        
             """
 
     @staticmethod
@@ -92,7 +99,7 @@ class ApiGitHub:
         tentativas = 0
         while (True):
             try:
-                request = requests.get(url, headers=self.__headers)
+                request = requests.get(url, headers=self.headers)
                 if (request.status_code == 200):
                     return request
                 elif (tentativas > numTentativas):
@@ -105,61 +112,91 @@ class ApiGitHub:
                 time.sleep(10)
 
     def requestApiGitHubV4(self, query, numTentativas=10):
-        request = requests.post('https://api.github.com/graphql', json={'query': query}, headers=self.__headers)
+        request = requests.post('https://api.github.com/graphql', json={'query': query}, headers=self.headers)
+
         if request.status_code == 200:
             return request.json()
         else:
             raise Exception("Query failed to run by returning code of {}. {}".format(request.status_code, query))
 
-    def getAlterateCommitPull(self, nodeCommit, perPage=100):
-
+    def getAlterateCommitPull(self, nodeCommit, perPage, state, dc, pwdCurrent):
         allPatchs = []
         totalCommit = nodeCommit['commits']['totalCount']
         numberPull = nodeCommit['commits']['nodes'][0]['resourcePath'].split('/')[4]
 
-        if (totalCommit < perPage):  # no caso de mais 100 commits em um pullrequest
+        if totalCommit < perPage:  # no caso de mais 100 commits em um pullrequest
             allPatchs = nodeCommit['commits']['nodes']
         else:
-            commitInfo = 'first:100'
-            for i in range(totalCommit / perPage+0.5):#arredonda flutuante pra cima (interio)
-                url = self.queryCommitBig.replace('userName', self.__user.loginUser).replace('NumberPull', numberPull).replace('commitInfo', commitInfo)
-                result = self.requestApiGitHubV4(url)
-                endCursor = result['data']['user']['pullRequests']['nodes'][0]['repository']['pullRequest']['commits']['pageInfo']['endCursor']
-                commitInfo += ', after:"{}"'.format(endCursor)
-                allPatchs += result['data']['user']['pullRequests']['nodes'][0]['repository']['pullRequest']['commits']['nodes']
+            commitInfo = 'first:{}'.format(perPage)
+            for i in range(math.ceil(totalCommit / perPage)):  # arredonda flutuante pra cima (interio)
+                try:
+                    url = self.queryCommitBig.replace('userName', self.__user.loginUser).replace('NumberPull',
+                                                                                                 numberPull).replace(
+                        'commitInfo', commitInfo).replace('stateQueryCommit', state)
+                    result = self.requestApiGitHubV4(url)
+                    endCursor = result['data']['user']['pullRequests']['nodes'][0]['repository']['pullRequest']['commits']['pageInfo']['endCursor']
+                    commitInfo = 'first:{}, after:"{}"'.format(perPage, endCursor)
+                    allPatchs += result['data']['user']['pullRequests']['nodes'][0]['repository']['pullRequest']['commits']['nodes']
+                except:
+                    # api v4 nao econtra alguns pulls closed
+                    pass
 
-        for i,node in enumerate(allPatchs):
-
-            print('\tCommit',str(i + 1) + '/' + str(totalCommit))
+        for i, node in enumerate(allPatchs):
+            print('\tCommit', str(i + 1) + '/' + str(totalCommit))
             url = 'https://github.com' + node['resourcePath'] + '.patch'
-            req = self.performRequest(self,url) # obtem raw alteração
-            if(not req):
-                continue
+            pwd = pwdCurrent + '\\' + url.split('/')[6]
+            if i == 0:
+                dc.newDirectory(pwd)
 
-    def getPullRequestUsers(self):
-        pullRequestsConfig = 'first:100, states:MERGED'
-        # cont = 0
-        user = self.__user
-        print(user.loginUser)
-        while (True):
-            url = self.__queryCommitFull.replace('userName', user.loginUser).replace('pullRequestsConfig', pullRequestsConfig)
-            result = self.requestApiGitHubV4(url)  # Execute the query
-            pullRequests = result["data"]["user"]['pullRequests']
-            user.numberPullRequest = pullRequests['totalCount']
-            for nodeCommit in pullRequests['nodes']:
-                # cont += 1
-                # print('pull nº ' , str(cont) + '/' + str(user.numberPullRequest))
-                # self.getAlterateCommitPull( nodeCommit )
-                self.getAlterateCommitPull(pullRequests['nodes'][18])
-                exit(0)
+            req = self.performRequest(self, url)  # obtem raw alteração
+            if req:
+                file = open(pwd + '\\' + node['commit']['abbreviatedOid'] + '.txt', 'w', encoding="utf-8")
+                file.write(req.text)
+                file.close()
 
-            # print('remaining: ',result['data']['rateLimit'])
-            # print('\n\n')
-            endCursorPull = pullRequests['pageInfo']['endCursor']
-            asNextPagePull = pullRequests['pageInfo']['hasNextPage']
+    def getPullRequestUsers(self, perPage=100):
+        states = ['MERGED', 'OPEN', 'CLOSED']
+        user = self.user
+        dc = ControlDir(user.loginUser)  # cria arquivo user
 
-            if (asNextPagePull):
-                pullRequestsConfig = 'first:100, after:"{}", states:MERGED'.format(endCursorPull)
-                # break #remover depois
-            else:
-                break
+        for state in states:
+            pullRequestsConfig = 'first:{}, states:{}'.format(perPage, state)
+            cont = 0
+            pwdCurrent = dc.userDirectory + '\\' + state
+            dc.newDirectory(pwdCurrent)  # adiciona Status ao diretorio
+            print(user.loginUser)
+            print(state)
+
+            while True:
+                url = self.queryCommitFull.replace('userName', user.loginUser).replace('pullRequestsConfig', pullRequestsConfig)
+                result = self.requestApiGitHubV4(url)  # Execute the query
+                pullRequests = result["data"]["user"]['pullRequests']
+                user.numberPullRequest = pullRequests['totalCount']
+                for nodeCommit in pullRequests['nodes']:
+                    cont += 1
+                    print('pull nº ', str(cont) + '/' + str(user.numberPullRequest))
+                    self.getAlterateCommitPull(nodeCommit, perPage, state, dc, pwdCurrent)
+
+                endCursorPull = pullRequests['pageInfo']['endCursor']
+                asNextPagePull = pullRequests['pageInfo']['hasNextPage']
+
+                if asNextPagePull:
+                    pullRequestsConfig = 'first:{}, after:"{}", states:{}'.format(perPage, endCursorPull, state)
+                else:
+                    break
+
+    @property
+    def user(self):
+        return self.__user
+
+    @property
+    def queryCommitFull(self):
+        return self.__queryCommitFull
+
+    @property
+    def headers(self):
+        return self.__headers
+
+    @property
+    def queryCommitBig(self):
+        return self.__queryCommitBig
