@@ -2,15 +2,13 @@ from src.apiGitHub import ApiGitHub
 from src.userGit import UserGit
 import pandas as pd
 import json
+import sys
 
-# try:
-#     token = sys.argv[1]
-# except:
-#     print('Insira o tokem GitHub')
-#     exit(0)
-
-token = 'a3beeb0717d2fa439935eea3f5de702e30ddd6b7'
-
+try:
+    token = sys.argv[1]
+except:
+    print('Insira o tokem GitHub')
+    exit(0)
 
 def getInfoUser():
     user = UserGit('luizSilveira')
