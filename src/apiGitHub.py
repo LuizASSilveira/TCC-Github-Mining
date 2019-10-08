@@ -1,5 +1,5 @@
-from controlDir import ControlDir
-from query import Query
+from src.controlDir import ControlDir
+from src.query import Query
 import requests
 import math
 import time
@@ -31,18 +31,24 @@ class ApiGitHub:
                 print('performRequest: ', e)
                 time.sleep(10)
 
-    def requestApiGitHubV4(self, query, numTentativa=20):
+    def requestApiGitHubV4(self, query, variables={}, numTentativa=20):
         while numTentativa > 0:
-            request = requests.post('https://api.github.com/graphql', json={'query': query}, headers=self.headers,
-                                    timeout=40)
-            if request.status_code == 200:
-                return request.json()
-            else:
-                print('tentativa ' + str(20 - numTentativa + 1))
-                print(request.text)
-                numTentativa -= 1
-                time.sleep(2)
-        raise Exception("Query failed to run by returning code of {}. {}".format(request.status_code, query))
+            try:
+                request = requests.post('https://api.github.com/graphql', json={'query': query, 'variables': variables}, headers=self.headers, timeout=30)
+                if request.status_code == 200:
+                    return request.json()
+                else:
+                    print('Tentativa Request Api V4 GitHub' + str(20 - numTentativa + 1))
+                    if 'timeout' in request.json()["errors"][0]["message"]:
+                        raise Exception
+                    numTentativa -= 1
+                    time.sleep(2)
+            except:
+                variables["numPage"] = (variables["numPage"] - 10) if variables["numPage"] > 10 else 10
+
+
+
+
 
     def getAlterateCommitPull(self, nodeCommit, perPage, state, dc, pwdCurrent):
         allPatchs = []
@@ -136,11 +142,12 @@ class ApiGitHub:
         json.dump(listRepo, file, indent=4)
         file.close()
 
-    def getUserInf(self, user):
-        return self.requestApiGitHubV4(Query.userPerfilInfo(user.loginUser))
+    def getUserInf(self):
+        query = Query.userPerfilInfo(self.user.loginUser)
+        return self.requestApiGitHubV4(query)
 
-    def getUserInfByYear(self, user):
-        dateCreated = user.createdAt.split("-")
+    def getUserInfByYear(self):
+        dateCreated = self.user.createdAt.split("-")
         yearCreated = int(dateCreated[0])
         monthCreated = int(dateCreated[1])
         flagMonth = True
@@ -160,15 +167,15 @@ class ApiGitHub:
                 month = 1
 
             userMonthinfo = {}
-            # print(yearCreated)
+            print(yearCreated)
             while True:
                 if month > 12 or (yearCreated == todayYear and month > todayMonth):
                     break
 
                 monthAux = str(month)
                 monthAux = (str(0) + monthAux) if month < 10 else monthAux
-                # print(monthAux)
-                query = Query.userInfoContributionsCollection(user.loginUser, str(yearCreated), monthAux)
+                print(monthAux)
+                query = Query.userInfoContributionsCollection(self.user.loginUser, str(yearCreated), monthAux)
                 userMonthinfo[month] = self.requestApiGitHubV4(query)["data"]["user"]["contributionsCollection"]
                 month += 1
 
@@ -180,6 +187,27 @@ class ApiGitHub:
     def getUserCommitContribution(self):
         query = Query.userCommitContribution()
         return self.requestApiGitHubV4(query)
+
+    def pullRequestContribution(self, nameUser, numPage=100):# maior q isso timeout
+        queryVariables = {
+            "nameUser": nameUser,
+            "numPage": numPage
+        }
+        RepositoryAffiliation = {'OWNER': [], 'COLLABORATOR': [], 'ORGANIZATION_MEMBER': []}
+        for repAff in RepositoryAffiliation.keys():
+            queryVariables["RepositoryAffiliation"] = repAff
+            after = ''
+
+            while True:
+                query = Query.repInfo(after)
+                resp = self.requestApiGitHubV4(query, queryVariables)
+                RepositoryAffiliation[repAff] += resp['data']['user']['repositories']['nodes']
+                if not resp['data']['user']['repositories']['pageInfo']['hasNextPage']:
+                    break
+                after = resp['data']['user']['repositories']['pageInfo']['endCursor']
+
+        return RepositoryAffiliation['OWNER'], RepositoryAffiliation['COLLABORATOR'], RepositoryAffiliation['ORGANIZATION_MEMBER']
+
 
     @property
     def user(self):

@@ -11,7 +11,7 @@ class Query:
           user(login:"QuincyLarson"){
             id
             url
-                repositories(ownerAffiliations:OWNER, first:15){
+            repositories(ownerAffiliations:OWNER, first:15){
               pageInfo{hasNextPage,endCursor}
               totalCount
               nodes{
@@ -153,7 +153,6 @@ class Query:
 
     @staticmethod
     def getAllCommitForPullRequest(userName, numberPull, commitInfo, state):
-
         query = """
         {
             user(login: "userName"){
@@ -193,35 +192,76 @@ class Query:
             }
         }
             """
-        return query.replace('userName', userName).replace('NumberPull', numberPull).replace('commitInfo', commitInfo).replace('stateQueryCommit', state)
+        return query.replace('userName', userName).replace('NumberPull', numberPull).replace('commitInfo',
+                                                                                             commitInfo).replace(
+            'stateQueryCommit', state)
 
     @staticmethod
     def userPerfilInfo(loginUser):
         query = """ 
-             { 
-                 user(login: "loginUser") {
-                    location,
-                    email,
-                    name,
-                    createdAt
-                    location,
-                    company,
-                    issues {totalCount}
-                    organizations (first: 100){
-                        pageInfo {endCursor, hasNextPage}
-                        nodes{name}
+             {
+                  rateLimit {
+                        cost
+                        remaining
+                        resetAt
+                  }
+                  user(login: loginUserName) {
+                        id
+                        avatarUrl
+                        bio
+                        url
+                        websiteUrl
+                        gistComments {
+                            totalCount
+                        }
+                        watching {
+                            totalCount
+                        }
+                        followers {
+                            totalCount
+                        }
+                        following {
+                            totalCount
+                        }
+                        location
+                            email
+                        name
+                        createdAt
+                        location
+                        company
+                        issues {
+                            totalCount
+                        }
+                        organizations(first: 100) {
+                        pageInfo {
+                            endCursor
+                            hasNextPage
+                        }
+                        nodes {
+                            name
+                        }
                         totalCount
-                    },
-                    projects {totalCount},
-                    gists {totalCount},
-                    pullRequests {totalCount},
-                    commitComments {totalCount}
-                    issueComments {totalCount}
-                 }
+                        }
+                        projects {
+                            totalCount
+                        }
+                        gists {
+                            totalCount
+                        }
+                        pullRequests {
+                            totalCount
+                        }
+                        commitComments {
+                            totalCount
+                        }
+                        issueComments {
+                            totalCount
+                        }
+                  }
              }
-        
              """
-        return query.replace('loginUser', loginUser)
+
+        return query.replace('loginUserName', loginUser)
 
     @staticmethod
     def userInfoContributionsCollection(loginUser, year, month):
@@ -239,3 +279,80 @@ class Query:
             }
             """
         return query.replace('longinUser', loginUser).replace("year", year).replace("month", month)
+
+    @staticmethod
+    def repInfo(after=''):
+        query = """
+        query repositroyInfo($numPage:Int!, $nameUser: String!, $RepositoryAffiliation : [RepositoryAffiliation!]){
+          rateLimit {
+            cost
+            remaining
+            resetAt
+          }
+          user(login: $nameUser) {
+            repositories(ownerAffiliations: $RepositoryAffiliation, first: $numPage after) {
+              pageInfo {
+                endCursor
+                hasNextPage
+              }
+              nodes {
+                nameWithOwner
+                url
+                forkCount
+                stargazers {
+                  totalCount
+                }
+                issues {
+                  totalCount
+                }
+                collaborators {
+                  totalCount
+                }
+                primaryLanguage {
+                  name
+                }
+                languages {
+                  pageInfo{
+                    endCursor
+                    hasNextPage
+                  }
+                  nodes {
+                    name
+                  }
+                }
+                licenseInfo {
+                  name
+                  nickname
+                }
+                labels {
+                  totalCount
+                }
+                releases {
+                  totalCount
+                }
+                assignableUsers {
+                  totalCount
+                }
+                commitComments {
+                  totalCount
+                }
+                watchers {
+                  totalCount
+                }
+                description
+                diskUsage
+                isFork
+                isLocked
+                isMirror
+                isPrivate
+                isArchived
+              }
+            }
+          }
+        }
+        """
+
+        if after:
+            after = ', after: "'+after+'"'
+
+        return query.replace('after', after)
