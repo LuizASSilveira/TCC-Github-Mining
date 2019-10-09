@@ -17,7 +17,6 @@ class Repository:
         self.__stargazers = data['stargazers']["totalCount"]
         self.__issues = data['issues']["totalCount"]
         self.__collaborators = data['collaborators']["totalCount"] if data['collaborators'] else 0
-        self.__languages = [name for name['name'] in data['languages']] if data['languages'] else ''
         self.__releases = data['releases']['totalCount']
         self.__assignableUsers = data['assignableUsers']['totalCount']
         self.__commitComments = data['commitComments']['totalCount']

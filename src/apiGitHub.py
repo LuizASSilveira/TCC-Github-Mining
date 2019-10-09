@@ -1,10 +1,11 @@
 from src.controlDir import ControlDir
 from src.query import Query
+from src.repository import Repository
+from datetime import date
 import requests
 import math
 import time
 import json
-from datetime import date
 
 
 class ApiGitHub:
@@ -34,21 +35,21 @@ class ApiGitHub:
     def requestApiGitHubV4(self, query, variables={}, numTentativa=20):
         while numTentativa > 0:
             try:
-                request = requests.post('https://api.github.com/graphql', json={'query': query, 'variables': variables}, headers=self.headers, timeout=30)
+                request = requests.post('https://api.github.com/graphql', json={'query': query, 'variables': variables},
+                                        headers=self.headers, timeout=30)
                 if request.status_code == 200:
                     return request.json()
                 else:
-                    print('Tentativa Request Api V4 GitHub' + str(20 - numTentativa + 1))
+                    print('Tentativa Request Api V4 GitHub n° ' + str(20 - numTentativa + 1))
                     if 'timeout' in request.json()["errors"][0]["message"]:
                         raise Exception
                     numTentativa -= 1
                     time.sleep(2)
             except:
-                variables["numPage"] = (variables["numPage"] - 10) if variables["numPage"] > 10 else 10
-
-
-
-
+                if (numTentativa < 17):
+                    variables["numPage"] = (variables["numPage"] - 10) if variables["numPage"] > 10 else 10
+        print(query)
+        return {}
 
     def getAlterateCommitPull(self, nodeCommit, perPage, state, dc, pwdCurrent):
         allPatchs = []
@@ -65,11 +66,12 @@ class ApiGitHub:
                     result = self.requestApiGitHubV4(query)
 
                     endCursor = \
-                    result['data']['user']['pullRequests']['nodes'][0]['repository']['pullRequest']['commits'][
-                        'pageInfo']['endCursor']
+                        result['data']['user']['pullRequests']['nodes'][0]['repository']['pullRequest']['commits'][
+                            'pageInfo']['endCursor']
                     commitInfo = 'first:{}, after:"{}"'.format(perPage, endCursor)
                     allPatchs += \
-                    result['data']['user']['pullRequests']['nodes'][0]['repository']['pullRequest']['commits']['nodes']
+                        result['data']['user']['pullRequests']['nodes'][0]['repository']['pullRequest']['commits'][
+                            'nodes']
                 except:
                     # api v4 nao econtra alguns pulls closed
                     pass
@@ -143,8 +145,41 @@ class ApiGitHub:
         file.close()
 
     def getUserInf(self):
-        query = Query.userPerfilInfo(self.user.loginUser)
-        return self.requestApiGitHubV4(query)
+        queryVariables = {
+            "nameUser": self.user.loginUser,
+        }
+        query = Query.userPerfilInfo()
+        info = self.requestApiGitHubV4(query, queryVariables)
+        self.user.name = info["data"]["user"]["name"]
+        self.user.id = info["data"]["user"]["id"]
+        self.user.email = info["data"]["user"]["email"]
+        self.user.avatarUrl = info["data"]["user"]["avatarUrl"]
+        self.user.bio = info["data"]["user"]["bio"]
+        self.user.watching = info["data"]["user"]["watching"]["totalCount"]
+        self.user.followers = info["data"]["user"]["followers"]["totalCount"]
+        self.user.following = info["data"]["user"]["following"]["totalCount"]
+        self.user.location = info["data"]["user"]["location"]
+        self.user.createdAt = info["data"]["user"]["createdAt"]
+        self.user.company = info["data"]["user"]["company"]
+        self.user.issues = info["data"]["user"]["issues"]["totalCount"]
+        self.user.organizationTotal = info["data"]["user"]["organizations"]["totalCount"]
+        self.user.projects = info["data"]["user"]["projects"]["totalCount"]
+        self.user.gists = info["data"]["user"]["gists"]["totalCount"]
+        self.user.pullRequests = info["data"]["user"]["pullRequests"]["totalCount"]
+        self.user.commitComments = info["data"]["user"]["commitComments"]["totalCount"]
+        self.user.issueComments = info["data"]["user"]["issueComments"]["totalCount"]
+        self.user.gistComments = info["data"]["user"]["gistComments"]["totalCount"]
+
+        namesOrganiztion = [name["name"] for name in info["data"]["user"]["organizations"]["nodes"]]
+        while info["data"]["user"]["organizations"]["pageInfo"]["hasNextPage"]:
+            queryVariables = {
+                "nameUser": self.user.loginUser,
+                "after": info["data"]["user"]["organizations"]["pageInfo"]["endCursor"]
+            }
+            info = self.requestApiGitHubV4(Query.getOrganizationremnant(), queryVariables)
+            namesOrganiztion += [name["name"] for name in info["data"]["user"]["organizations"]["nodes"]]
+
+        self.user.organizations = namesOrganiztion
 
     def getUserInfByYear(self):
         dateCreated = self.user.createdAt.split("-")
@@ -175,8 +210,14 @@ class ApiGitHub:
                 monthAux = str(month)
                 monthAux = (str(0) + monthAux) if month < 10 else monthAux
                 print(monthAux)
-                query = Query.userInfoContributionsCollection(self.user.loginUser, str(yearCreated), monthAux)
-                userMonthinfo[month] = self.requestApiGitHubV4(query)["data"]["user"]["contributionsCollection"]
+                queryVariables = {
+                    "nameUser": self.user.loginUser,
+                    "fromDate": '{}-{}-01T04:00:00Z'.format(yearCreated, monthAux),
+                    "toDate": '{}-{}-31T23:59:59Z'.format(yearCreated, monthAux),
+                }
+                query = Query.userInfoContributionsCollection()
+                userMonthinfo[month] = self.requestApiGitHubV4(query, queryVariables)["data"]["user"][
+                    "contributionsCollection"]
                 month += 1
 
             userYearInfo[yearCreated] = userMonthinfo
@@ -188,7 +229,7 @@ class ApiGitHub:
         query = Query.userCommitContribution()
         return self.requestApiGitHubV4(query)
 
-    def pullRequestContribution(self, nameUser, numPage=100):# maior q isso timeout
+    def pullRequestContribution(self, nameUser, numPage=80):
         queryVariables = {
             "nameUser": nameUser,
             "numPage": numPage
@@ -201,13 +242,15 @@ class ApiGitHub:
             while True:
                 query = Query.repInfo(after)
                 resp = self.requestApiGitHubV4(query, queryVariables)
-                RepositoryAffiliation[repAff] += resp['data']['user']['repositories']['nodes']
+                for rep in resp['data']['user']['repositories']['nodes']:
+                    RepositoryAffiliation[repAff].append(Repository(repAff, self.user, rep))
+
                 if not resp['data']['user']['repositories']['pageInfo']['hasNextPage']:
                     break
                 after = resp['data']['user']['repositories']['pageInfo']['endCursor']
 
-        return RepositoryAffiliation['OWNER'], RepositoryAffiliation['COLLABORATOR'], RepositoryAffiliation['ORGANIZATION_MEMBER']
-
+        return RepositoryAffiliation['OWNER'], RepositoryAffiliation['COLLABORATOR'], RepositoryAffiliation[
+            'ORGANIZATION_MEMBER']
 
     @property
     def user(self):

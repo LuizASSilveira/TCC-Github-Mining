@@ -197,15 +197,39 @@ class Query:
             'stateQueryCommit', state)
 
     @staticmethod
-    def userPerfilInfo(loginUser):
+    def getOrganizationremnant():
+        query = """
+            query userInfo($nameUser: String!, $after:String!) {
+                rateLimit {
+                    cost
+                    remaining
+                    resetAt
+                    }
+                    user(login: $nameUser) {
+                        organizations(first: 100, after:$after) {
+                        pageInfo {
+                            endCursor
+                            hasNextPage
+                        }
+                        nodes {
+                        name
+                        }
+                    }
+                }
+            }
+        """
+        return query
+
+    @staticmethod
+    def userPerfilInfo():
         query = """ 
-             {
+              query userInfo($nameUser:String!){
                   rateLimit {
                         cost
                         remaining
                         resetAt
                   }
-                  user(login: loginUserName) {
+                  user(login:$nameUser) {
                         id
                         avatarUrl
                         bio
@@ -233,14 +257,14 @@ class Query:
                             totalCount
                         }
                         organizations(first: 100) {
-                        pageInfo {
-                            endCursor
-                            hasNextPage
-                        }
-                        nodes {
-                            name
-                        }
-                        totalCount
+                            totalCount
+                            pageInfo {
+                                endCursor
+                                hasNextPage
+                            }
+                            nodes {
+                                name
+                            }
                         }
                         projects {
                             totalCount
@@ -261,14 +285,19 @@ class Query:
              }
              """
 
-        return query.replace('loginUserName', loginUser)
+        return query
 
     @staticmethod
-    def userInfoContributionsCollection(loginUser, year, month):
+    def userInfoContributionsCollection():
         query = """ 
-            query { 
-                user(login:"longinUser"){
-                    contributionsCollection (from: "year-month-01T04:00:00Z", to: "year-month-31T23:59:59Z"){
+            query userContByYear($nameUser:String!, $fromDate:DateTime!, $toDate:DateTime!){ 
+                rateLimit{
+                    cost
+                    remaining
+                    resetAt
+                }
+                user(login:$nameUser){
+                    contributionsCollection (from: $fromDate, to:$toDate){
                         totalRepositoryContributions,
                         totalPullRequestContributions,
                         totalCommitContributions,
@@ -277,8 +306,8 @@ class Query:
                     }
                 }
             }
-            """
-        return query.replace('longinUser', loginUser).replace("year", year).replace("month", month)
+        """
+        return query
 
     @staticmethod
     def repInfo(after=''):
@@ -310,15 +339,6 @@ class Query:
                 }
                 primaryLanguage {
                   name
-                }
-                languages {
-                  pageInfo{
-                    endCursor
-                    hasNextPage
-                  }
-                  nodes {
-                    name
-                  }
                 }
                 licenseInfo {
                   name
@@ -354,5 +374,4 @@ class Query:
 
         if after:
             after = ', after: "'+after+'"'
-
         return query.replace('after', after)
