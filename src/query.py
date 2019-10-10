@@ -1,97 +1,51 @@
 class Query:
     @staticmethod
-    def userCommitContribution():
+    def repCommit():
         query = """
-        {
-            rateLimit{
-                cost
-                remaining
-                resetAt
-                }
-          user(login:"QuincyLarson"){
-            id
-            url
-            repositories(ownerAffiliations:OWNER, first:15){
-              pageInfo{hasNextPage,endCursor}
-              totalCount
-              nodes{
-                licenseInfo{name, nickname }
-                stargazers{
-                        totalCount
-                }
-                pullRequests{
-                        totalCount
-                }
-                # collaborators{
-                    # totalCount
-                # }
-                watchers{
-                        totalCount
-                        }
-                forkCount
-                issues(first:100){
-                  totalCount
-                  nodes{
-                    title
-                    bodyText
-                    closed
-                    createdAt
-                    closedAt
-                    number
-                    url
-                    labels(first:100){
-                      totalCount
-                      nodes{
-                        name
-                        description
-                        
-                      }
-                    }
-                  }
-                }
-                languages(first:100){
-                        totalCount,
-                        nodes{
-                                name
-                                }
-                        }
-        
-                nameWithOwner
-                isFork
-                defaultBranchRef{
-                  associatedPullRequests(first:100){
-                    pageInfo{hasNextPage,endCursor}
-                    nodes{
-                      url,
-                      number,
-                      title,
-                      body,
-                      bodyText,
-                    }
+        query userRepositoryCommit($idUser: ID!, $numPageIssues: Int!, $owner: String!, $name: String!) {
+          rateLimit {
+            cost
+            remaining
+            resetAt
+          }
+          repository(owner: $owner, name: $name) {
+            defaultBranchRef {
+              target {
+                ... on Commit {
+                  history(author: {id: $idUser}, first: $numPageIssues) {
                     totalCount
-                  }
-                  target{
-                    ... on Commit{
-                      history(author:{id:"MDQ6VXNlcjk4NTE5Nw=="},first:100){
+                    pageInfo {
+                      endCursor
+                      hasNextPage
+                    }
+                    nodes {
+                      url
+                      pushedDate
+                      comments {
                         totalCount
-                                nodes{
-                        commitUrl
-                        author{
-                                user{
-                                        login
-                                }
+                      }
+                      deployments {
+                        totalCount
+                      }
+                      status {
+                        state
+                      }
+                      committedDate
+                      authoredByCommitter
+                      authoredDate
+                      changedFiles
+                      additions
+                      deletions
+                      message
+                      messageBody
+                      author {
+                        user {
+                          login
                         }
-                        committer{
-                        user{
-                                login
-                                }
-                        }
-                        authoredByCommitter
-                        changedFiles
-                                    additions
-                        deletions
-                        message
-                        messageBody
+                      }
+                      committer {
+                        user {
+                          login
                         }
                       }
                     }
@@ -101,6 +55,7 @@ class Query:
             }
           }
         }
+
         """
         return query
 
@@ -192,9 +147,7 @@ class Query:
             }
         }
             """
-        return query.replace('userName', userName).replace('NumberPull', numberPull).replace('commitInfo',
-                                                                                             commitInfo).replace(
-            'stateQueryCommit', state)
+        return query.replace('userName', userName).replace('NumberPull', numberPull).replace('commitInfo', commitInfo).replace('stateQueryCommit', state)
 
     @staticmethod
     def getOrganizationremnant():
@@ -327,6 +280,7 @@ class Query:
               nodes {
                 nameWithOwner
                 url
+                pushedAt
                 forkCount
                 stargazers {
                   totalCount
@@ -375,3 +329,44 @@ class Query:
         if after:
             after = ', after: "'+after+'"'
         return query.replace('after', after)
+
+    @staticmethod
+    def repIssues():
+        query = """
+            query repInfo($numPageIssues: Int!,$owner:String!, $name:String!) {
+                rateLimit {
+                    cost
+                    remaining
+                    resetAt
+                }
+                repository(owner: $owner, name: $name) {
+                    issues(orderBy: {field: CREATED_AT, direction: ASC}, first: $numPageIssues) {
+                        totalCount
+                        pageInfo {
+                            endCursor
+                            hasNextPage
+                        }
+                        nodes {
+                            author {
+                                login
+                            }
+                            authorAssociation
+                            editor {
+                                login
+                            }
+                            lastEditedAt
+                            closed
+                            locked
+                            publishedAt
+                            createdAt
+                            closedAt
+                            number
+                            url
+                            title
+                            bodyText
+                        }
+                    }
+                }
+            }
+        """
+        return query

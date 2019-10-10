@@ -229,12 +229,12 @@ class ApiGitHub:
         query = Query.userCommitContribution()
         return self.requestApiGitHubV4(query)
 
-    def pullRequestContribution(self, nameUser, numPage=80):
+    def repositoryUser(self, nameUser, numPage=80):
         queryVariables = {
             "nameUser": nameUser,
             "numPage": numPage
         }
-        RepositoryAffiliation = {'OWNER': [], 'COLLABORATOR': [], 'ORGANIZATION_MEMBER': []}
+        RepositoryAffiliation = {'OWNER': [], 'COLLABORATOR': []}
         for repAff in RepositoryAffiliation.keys():
             queryVariables["RepositoryAffiliation"] = repAff
             after = ''
@@ -249,8 +249,30 @@ class ApiGitHub:
                     break
                 after = resp['data']['user']['repositories']['pageInfo']['endCursor']
 
-        return RepositoryAffiliation['OWNER'], RepositoryAffiliation['COLLABORATOR'], RepositoryAffiliation[
-            'ORGANIZATION_MEMBER']
+        return RepositoryAffiliation['OWNER'], RepositoryAffiliation['COLLABORATOR']
+
+    def getUserRepositoryIssues(self, numPage = 100):
+        queryVariables = {
+            "numPageIssues": numPage,
+            "owner": "sstephenson",
+            "name": "sprockets"
+        }
+
+        query = Query.repIssues()
+        resp = self.requestApiGitHubV4(query, queryVariables)
+        print(resp)
+
+
+    def getUserRepositoryCommit(self, numPage = 100):
+        queryVariables = {
+            "numPageIssues": numPage,
+            "idUser": "MDQ6VXNlcjk4NTE5Nw==",
+            "owner": "QuincyLarson",
+            "name": "freecodecamp"
+        }
+        query = Query.repCommit()
+        print(self.requestApiGitHubV4(query, queryVariables))
+
 
     @property
     def user(self):

@@ -2,7 +2,8 @@ class Repository:
     def __init__(self, RepositoryAffiliation, user, data):
         self.__userLogin = user.loginUser
         self.__userId = user.id
-        self.__RepositoryAffiliation = RepositoryAffiliation
+        self.__repositoryAffiliation = RepositoryAffiliation
+        self.__pushedAt = data['pushedAt']
         self.__nameWithOwner = data['nameWithOwner']
         self.__url = data['url']
         self.__diskUsage = data['diskUsage']
@@ -23,12 +24,3 @@ class Repository:
         self.__watchers = data['watchers']['totalCount']
         self.__primaryLanguage = data["primaryLanguage"]['name'] if data['primaryLanguage'] else ''
         self.__descriptions = data['description']
-
-
-
-
-
-
-
-
-

@@ -25,9 +25,12 @@ def proInfoUser(user):
 
 def repositoryUser(user):
     apiUser = ApiGitHub(user, 'token ' + token)
-    OWNER, COLLABORATOR, ORGANIZATION_MEMBER = apiUser.pullRequestContribution(user.loginUser)
-    repOwner = [owner.__dict__ for owner in OWNER] + [collab.__dict__ for collab in COLLABORATOR] + [org.__dict__ for org in ORGANIZATION_MEMBER]
-    FileControl.saveJson(repOwner, diretorioPadrao, 'RepositoryOwner.json', 'w')
+    # OWNER, COLLABORATOR = apiUser.repositoryUser(user.loginUser)
+    # repOwner = [owner.__dict__ for owner in OWNER] + [collab.__dict__ for collab in COLLABORATOR]
+    # FileControl.saveJson(repOwner, diretorioPadrao, 'RepositoryOwner.json', 'w')
+    # apiUser.getUserRepositoryIssues() #descontinuar ???????
+
+    apiUser.getUserRepositoryCommit()
 
 
 def getCommitUser():
@@ -40,8 +43,8 @@ def getCommitUser():
 
 
 user = UserGit('rafaelfranca')
-proInfoUser(user)
-# repositoryUser(user)
+# proInfoUser(user)
+repositoryUser(user)
 
 
 # getCommitUser()
