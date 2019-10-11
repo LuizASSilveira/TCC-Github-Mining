@@ -1,6 +1,6 @@
 class Query:
     @staticmethod
-    def repCommit():
+    def repCommit(after=''):
         query = """
         query userRepositoryCommit($idUser: ID!, $numPageIssues: Int!, $owner: String!, $name: String!) {
           rateLimit {
@@ -12,7 +12,7 @@ class Query:
             defaultBranchRef {
               target {
                 ... on Commit {
-                  history(author: {id: $idUser}, first: $numPageIssues) {
+                  history(author: {id: $idUser}, first: $numPageIssues $after) {
                     totalCount
                     pageInfo {
                       endCursor
@@ -57,7 +57,9 @@ class Query:
         }
 
         """
-        return query
+        if after:
+            after = ', after: "' + after + '"'
+        return query.replace('$after', after)
 
     @staticmethod
     def getMax100CommitForPullRequests(loginUser, pullRequestsConfig):

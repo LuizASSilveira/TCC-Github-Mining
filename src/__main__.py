@@ -15,22 +15,26 @@ except:
 diretorioPadrao = "C:\\Users\\luiz_\\OneDrive\\Área de Trabalho\\"
 
 
-
 def proInfoUser(user):
     apiUser = ApiGitHub(user, 'token ' + token)
+    print('userInfo')
     apiUser.getUserInf()
     FileControl.saveJson(user.toDict(), diretorioPadrao, 'UserInfo.json', 'w')
+    print('userInfoByYear')
     FileControl.saveJson(apiUser.getUserInfByYear(), diretorioPadrao, 'UserInfoByTime.json', 'w')
 
 
 def repositoryUser(user):
     apiUser = ApiGitHub(user, 'token ' + token)
-    # OWNER, COLLABORATOR = apiUser.repositoryUser(user.loginUser)
-    # repOwner = [owner.__dict__ for owner in OWNER] + [collab.__dict__ for collab in COLLABORATOR]
-    # FileControl.saveJson(repOwner, diretorioPadrao, 'RepositoryOwner.json', 'w')
+    print('Repositorys')
+    OWNER, COLLABORATOR = apiUser.repositoryUser(user.loginUser)
+    repOwner = [owner.__dict__ for owner in OWNER] + [collab.__dict__ for collab in COLLABORATOR]
+    FileControl.saveJson(repOwner, diretorioPadrao, 'RepositoryOwner.json', 'w')
     # apiUser.getUserRepositoryIssues() #descontinuar ???????
+    print('commit')
+    resp = apiUser.getUserRepositoryCommit(OWNER + COLLABORATOR)
+    FileControl.saveJson([r.__dict__ for r in resp], diretorioPadrao, 'Commit2.json', 'a')
 
-    apiUser.getUserRepositoryCommit()
 
 
 def getCommitUser():
@@ -42,8 +46,9 @@ def getCommitUser():
     teste.close()
 
 
+FileControl.saveJson('', diretorioPadrao, 'Commit2.json', 'w')
 user = UserGit('rafaelfranca')
-# proInfoUser(user)
+proInfoUser(user)
 repositoryUser(user)
 
 

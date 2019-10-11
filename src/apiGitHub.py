@@ -1,6 +1,7 @@
 from src.controlDir import ControlDir
-from src.query import Query
 from src.repository import Repository
+from src.commit import Commit
+from src.query import Query
 from datetime import date
 import requests
 import math
@@ -35,8 +36,7 @@ class ApiGitHub:
     def requestApiGitHubV4(self, query, variables={}, numTentativa=20):
         while numTentativa > 0:
             try:
-                request = requests.post('https://api.github.com/graphql', json={'query': query, 'variables': variables},
-                                        headers=self.headers, timeout=30)
+                request = requests.post('https://api.github.com/graphql', json={'query': query, 'variables': variables}, headers=self.headers, timeout=30)
                 if request.status_code == 200:
                     return request.json()
                 else:
@@ -44,7 +44,7 @@ class ApiGitHub:
                     if 'timeout' in request.json()["errors"][0]["message"]:
                         raise Exception
                     numTentativa -= 1
-                    time.sleep(2)
+                    time.sleep(3)
             except:
                 if (numTentativa < 17):
                     variables["numPage"] = (variables["numPage"] - 10) if variables["numPage"] > 10 else 10
@@ -209,15 +209,13 @@ class ApiGitHub:
 
                 monthAux = str(month)
                 monthAux = (str(0) + monthAux) if month < 10 else monthAux
-                print(monthAux)
                 queryVariables = {
                     "nameUser": self.user.loginUser,
                     "fromDate": '{}-{}-01T04:00:00Z'.format(yearCreated, monthAux),
                     "toDate": '{}-{}-31T23:59:59Z'.format(yearCreated, monthAux),
                 }
                 query = Query.userInfoContributionsCollection()
-                userMonthinfo[month] = self.requestApiGitHubV4(query, queryVariables)["data"]["user"][
-                    "contributionsCollection"]
+                userMonthinfo[month] = self.requestApiGitHubV4(query, queryVariables)["data"]["user"]["contributionsCollection"]
                 month += 1
 
             userYearInfo[yearCreated] = userMonthinfo
@@ -251,7 +249,7 @@ class ApiGitHub:
 
         return RepositoryAffiliation['OWNER'], RepositoryAffiliation['COLLABORATOR']
 
-    def getUserRepositoryIssues(self, numPage = 100):
+    def getUserRepositoryIssues(self, numPage=100):
         queryVariables = {
             "numPageIssues": numPage,
             "owner": "sstephenson",
@@ -262,17 +260,35 @@ class ApiGitHub:
         resp = self.requestApiGitHubV4(query, queryVariables)
         print(resp)
 
+    def getUserRepositoryCommit(self, arrayRepository, numPage=100):
+        arrayCommits = []
+        for repository in arrayRepository:
+            print(repository.nameWithOwner)
+            owner, name = repository.nameWithOwner.split('/')
+            queryVariables = {
+                "numPageIssues": numPage,
+                "idUser": self.user.id,
+                "owner": owner,
+                "name": name
+            }
+            after = ''
+            while True:
+                query = Query.repCommit(after)
+                resp = self.requestApiGitHubV4(query, queryVariables)
+                print(resp)
+                if not resp['data']['repository']['defaultBranchRef']:
+                    break
 
-    def getUserRepositoryCommit(self, numPage = 100):
-        queryVariables = {
-            "numPageIssues": numPage,
-            "idUser": "MDQ6VXNlcjk4NTE5Nw==",
-            "owner": "QuincyLarson",
-            "name": "freecodecamp"
-        }
-        query = Query.repCommit()
-        print(self.requestApiGitHubV4(query, queryVariables))
+                resp = resp['data']['repository']['defaultBranchRef']['target']['history']
+                numCommit = resp['totalCount']
+                print(numCommit)
+                for commit in resp['nodes']:
+                    arrayCommits.append(Commit(self.user, repository, numCommit, commit))
 
+                if not resp['pageInfo']['hasNextPage']:
+                    break
+                after = resp['pageInfo']['endCursor']
+        return arrayCommits
 
     @property
     def user(self):

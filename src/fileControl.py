@@ -8,6 +8,6 @@ class FileControl:
 
         dirFull = dir + '\\' + nameFile
         file = open(dirFull, typeOpen, encoding=encodingFile)
-        json.dump(data, file, indent=4)
+        if data:
+            json.dump(data, file, indent=4)
         file.close()
-
