@@ -18,12 +18,12 @@ class ApiGitHub:
 
     def performRequest(self, url, numTentativas=10):
         tentativas = 0
-        while (True):
+        while True:
             try:
                 request = requests.get(url, headers=self.headers)
-                if (request.status_code == 200):
+                if request.status_code == 200:
                     return request
-                elif (tentativas > numTentativas):
+                elif tentativas > numTentativas:
                     return False
                 else:
                     tentativas += 1
@@ -46,7 +46,7 @@ class ApiGitHub:
                     numTentativa -= 1
                     time.sleep(3)
             except:
-                if (numTentativa < 17):
+                if numTentativa < 17:
                     variables["numPage"] = (variables["numPage"] - 10) if variables["numPage"] > 10 else 10
         print(query)
         return {}
