@@ -7,7 +7,7 @@ import json
 import sys
 
 try:
-    token = sys.argv[1]
+    token = '07261273e020236462baa4a48f3ecbdc81f86959'
 except:
     print('Insira o tokem GitHub')
     exit(0)
@@ -19,37 +19,35 @@ def proInfoUser(user):
     apiUser = ApiGitHub(user, 'token ' + token)
     print('userInfo')
     apiUser.getUserInf()
-    FileControl.saveJson(user.toDict(), diretorioPadrao, 'UserInfo.json', 'w')
+    # FileControl.saveJson(user.toDict(), diretorioPadrao, 'UserInfo.json', 'w')
     print('userInfoByYear')
-    FileControl.saveJson(apiUser.getUserInfByYear(), diretorioPadrao, 'UserInfoByTime.json', 'w')
+    # FileControl.saveJson(apiUser.getUserInfByYear(), diretorioPadrao, 'UserInfoByTime.json', 'w')
 
 
 def repositoryUser(user):
     apiUser = ApiGitHub(user, 'token ' + token)
     print('Repositorys')
     OWNER, COLLABORATOR = apiUser.repositoryUser(user.loginUser)
-    repOwner = [owner.__dict__ for owner in OWNER] + [collab.__dict__ for collab in COLLABORATOR]
-    FileControl.saveJson(repOwner, diretorioPadrao, 'RepositoryOwner.json', 'w')
+    # repOwner = [owner.__dict__ for owner in OWNER] + [collab.__dict__ for collab in COLLABORATOR]
+    # FileControl.saveJson(repOwner, diretorioPadrao, 'RepositoryOwner.json', 'w')
     # apiUser.getUserRepositoryIssues() #descontinuar ???????
     print('commit')
-    resp = apiUser.getUserRepositoryCommit(OWNER + COLLABORATOR)
-    FileControl.saveJson([r.__dict__ for r in resp], diretorioPadrao, 'Commit2.json', 'a')
-
+    resp = apiUser.getUserRepositoryCommit(OWNER[:10])
+    # print(resp)
+    # FileControl.saveJson([r.__dict__ for r in resp], diretorioPadrao, 'Commit2.json', 'a')
 
 
 def getCommitUser():
     user = UserGit("username")
     apiUser = ApiGitHub(user, 'token ' + token)
     data = apiUser.getUserCommitContribution()
-    teste = open(r"C:\Users\luiz_\OneDrive\Área de Trabalho\UserCommit.json", "w", encoding='UTF-8')
-    json.dump(data, teste, indent=4)
-    teste.close()
+    # teste = open(r"C:\Users\luiz_\OneDrive\Área de Trabalho\UserCommit.json", "w", encoding='UTF-8')
+    # json.dump(data, teste, indent=4)
+    # teste.close()
 
 
 FileControl.saveJson('', diretorioPadrao, 'Commit2.json', 'w')
 user = UserGit('rafaelfranca')
 proInfoUser(user)
 repositoryUser(user)
-
-
-# getCommitUser()
+getCommitUser()

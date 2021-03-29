@@ -233,10 +233,11 @@ class ApiGitHub:
             "numPage": numPage
         }
         RepositoryAffiliation = {'OWNER': [], 'COLLABORATOR': []}
+        # RepositoryAffiliation = {'OWNER': [], 'COLLABORATOR': []}
         for repAff in RepositoryAffiliation.keys():
             queryVariables["RepositoryAffiliation"] = repAff
             after = ''
-
+            c=0
             while True:
                 query = Query.repInfo(after)
                 resp = self.requestApiGitHubV4(query, queryVariables)
@@ -246,6 +247,7 @@ class ApiGitHub:
                 if not resp['data']['user']['repositories']['pageInfo']['hasNextPage']:
                     break
                 after = resp['data']['user']['repositories']['pageInfo']['endCursor']
+            break
 
         return RepositoryAffiliation['OWNER'], RepositoryAffiliation['COLLABORATOR']
 
